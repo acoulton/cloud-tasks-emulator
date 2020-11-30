@@ -78,17 +78,10 @@ func TestCreateTask(t *testing.T) {
 	serv, client := setUp(t)
 	defer tearDown(t, serv)
 
-	queue := newQueue(formattedParent, "test")
-	createQueueRequest := taskspb.CreateQueueRequest{
-		Parent: formattedParent,
-		Queue:  queue,
-	}
-
-	createdQueue, err := client.CreateQueue(context.Background(), &createQueueRequest)
-	require.NoError(t, err)
+	testQueue := createTestQueue(t, client, "test")
 
 	createTaskRequest := taskspb.CreateTaskRequest{
-		Parent: createdQueue.GetName(),
+		Parent: testQueue.GetName(),
 		Task: &taskspb.Task{
 			MessageType: &taskspb.Task_HttpRequest{
 				HttpRequest: &taskspb.HttpRequest{
@@ -111,17 +104,10 @@ func TestCreateTaskRejectsInvalidName(t *testing.T) {
 	serv, client := setUp(t)
 	defer tearDown(t, serv)
 
-	queue := newQueue(formattedParent, "test")
-	createQueueRequest := taskspb.CreateQueueRequest{
-		Parent: formattedParent,
-		Queue:  queue,
-	}
-
-	createdQueue, err := client.CreateQueue(context.Background(), &createQueueRequest)
-	require.NoError(t, err)
+	testQueue := createTestQueue(t, client, "test")
 
 	createTaskRequest := taskspb.CreateTaskRequest{
-		Parent: createdQueue.GetName(),
+		Parent: testQueue.GetName(),
 		Task: &taskspb.Task{
 			Name: "is-this-a-name",
 			MessageType: &taskspb.Task_HttpRequest{
@@ -153,19 +139,12 @@ func TestSuccessTaskExecution(t *testing.T) {
 		func(req *http.Request) {},
 	)
 
-	queue := newQueue(formattedParent, "test")
-	createQueueRequest := taskspb.CreateQueueRequest{
-		Parent: formattedParent,
-		Queue:  queue,
-	}
-
-	createdQueue, err := client.CreateQueue(context.Background(), &createQueueRequest)
-	require.NoError(t, err)
+	testQueue := createTestQueue(t, client, "test")
 
 	createTaskRequest := taskspb.CreateTaskRequest{
-		Parent: createdQueue.GetName(),
+		Parent: testQueue.GetName(),
 		Task: &taskspb.Task{
-			Name: createdQueue.GetName() + "/tasks/my-test-task",
+			Name: testQueue.GetName() + "/tasks/my-test-task",
 			MessageType: &taskspb.Task_HttpRequest{
 				HttpRequest: &taskspb.HttpRequest{
 					Url: "http://localhost:5000/success",
@@ -216,18 +195,10 @@ func TestErrorTaskExecution(t *testing.T) {
 		func(req *http.Request) { called++ },
 	)
 
-	queue := newQueue(formattedParent, "test")
-
-	createQueueRequest := taskspb.CreateQueueRequest{
-		Parent: formattedParent,
-		Queue:  queue,
-	}
-
-	createdQueue, err := client.CreateQueue(context.Background(), &createQueueRequest)
-	require.NoError(t, err)
+	testQueue := createTestQueue(t, client, "test")
 
 	createTaskRequest := taskspb.CreateTaskRequest{
-		Parent: createdQueue.GetName(),
+		Parent: testQueue.GetName(),
 		Task: &taskspb.Task{
 			MessageType: &taskspb.Task_HttpRequest{
 				HttpRequest: &taskspb.HttpRequest{
@@ -251,6 +222,19 @@ func TestErrorTaskExecution(t *testing.T) {
 	assert.Equal(t, 4, called)
 
 	srv.Shutdown(context.Background())
+}
+
+func createTestQueue(t *testing.T, client *Client, qName string) *taskspb.Queue {
+	queue := newQueue(formattedParent, "test")
+	createQueueRequest := taskspb.CreateQueueRequest{
+		Parent: formattedParent,
+		Queue:  queue,
+	}
+
+	createdQueue, err := client.CreateQueue(context.Background(), &createQueueRequest)
+	require.NoError(t, err)
+
+	return createdQueue
 }
 
 func newQueue(formattedParent, name string) *taskspb.Queue {
